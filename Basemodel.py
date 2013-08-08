@@ -60,7 +60,7 @@ display(HTML(median_model[:10].to_html()))
 def test_june(prediction, dow='tue'):
     # dow는 0부터 6까지의 값으로 0이 일요일이다. 화요일은 2이다.
     week = ['sat', 'sun', 'mon', 'tue', 'wed', 'thu', 'fri']
-    i = week.index(dow.lower())
+    i = week.index(dow.lower()) 
     testing_days = range(i+1, 31, 7)
 
     result = []
@@ -120,4 +120,124 @@ for i in range(7):
 # <markdowncell>
 
 # 주말의 결과는 전체 데이터를 사용한 것이 월등하다. 평일에는 조금 갈리는 경향을 보인다. 월, 목, 금에는 전체 데이터를 사용한 편이 좋고 화, 수에는 평일 데이터만 활용하는 것이 좋다.
+
+# <markdowncell>
+
+# 조금 더 나은 분석을 위해 일종의 bootstrap을 해보자.
+
+# <codecell>
+
+whole_data = pd.concat([april, may, june])
+
+# <codecell>
+
+whole_data['date'] = whole_data.date_time.apply(lambda x: x.date())
+whole_data['time'] = whole_data.date_time.apply(lambda x: "{:02d}{:02d}".format(x.hour, x.minute))
+whole_data['weekday'] = whole_data['date_time'].apply(lambda x: x.weekday())
+whole_data = whole_data.sort(['date', 'direction', 'index', 'time'])
+
+# <codecell>
+
+import random
+
+def bootstrap():
+    # 91 days
+    days = range(91)
+    random.shuffle(days)
+
+    STRIDE = 2 * 126 * 288
+    
+    test_range = days[:10]
+    train_range = days[10:]
+    
+    train_data = []
+    for x in train_range:
+        train_data.append(whole_data[x * STRIDE:(x + 1) * STRIDE])
+        
+    test_data = []
+    for x in test_range:
+        test_data.append(whole_data[x * STRIDE:(x + 1) * STRIDE])
+        
+    bootstrap_train = pd.concat(train_data)
+    bootstrap_test = pd.concat(test_data)
+
+    return bootstrap_train, bootstrap_test
+
+# <codecell>
+
+def test_bootstrap(prediction, test_data, dow='tue'):
+    week = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
+    i = week.index(dow.lower())
+    
+    test_data = test_data[test_data['weekday'] == i]
+    
+    STRIDE = 2 * 126 * 288
+    stepsize = len(test_data) / STRIDE
+    
+    result = []
+    for k in range(stepsize):
+        temp_data = test_data[k * STRIDE:(k + 1) * STRIDE]
+        temp_data = temp_data.sort(['direction', 'index', 'time'])
+        prediction = prediction.sort(['direction', 'index', 'time'])
+        
+        result.append(np.mean(np.abs(prediction.speed.values - temp_data.speed.values)))
+        
+    return result
+
+# <codecell>
+
+for x in range(10):
+    train, test = bootstrap()
+
+    group = train.groupby(['direction', 'index', 'time'])
+    df = group.median()
+    bootstrap_median_model = df.reset_index()
+    
+    weekdays = train[train['weekday'] < 5]
+    group = weekdays.groupby(['direction', 'index', 'time'])
+    df = group.median()
+    bootstrap_weekday_median_model = df.reset_index()
+    
+    bootstrap_median_model_res = test_bootstrap(bootstrap_median_model, test, 'tue')
+    bootstrap_weekday_median_model_res = test_bootstrap(bootstrap_weekday_median_model, test, 'tue')
+    
+    print np.mean(bootstrap_median_model_res), np.mean(bootstrap_weekday_median_model_res)
+    print np.mean(bootstrap_median_model_res) - np.mean(bootstrap_weekday_median_model_res)
+
+# <markdowncell>
+
+# 화요일 기준으로는 평일 데이터를 사용한 것이 항상 우월하다.
+
+# <codecell>
+
+for y in ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']:
+    print y
+    result = []
+    for x in range(10):
+        train, test = bootstrap()
+    
+        group = train.groupby(['direction', 'index', 'time'])
+        df = group.median()
+        bootstrap_median_model = df.reset_index()
+        
+        weekdays = train[train['weekday'] < 5]
+        group = weekdays.groupby(['direction', 'index', 'time'])
+        df = group.median()
+        bootstrap_weekday_median_model = df.reset_index()
+        
+        bootstrap_median_model_res = test_bootstrap(bootstrap_median_model, test, y)
+        bootstrap_weekday_median_model_res = test_bootstrap(bootstrap_weekday_median_model, test, y)
+        
+        #print np.mean(bootstrap_median_model_res), np.mean(bootstrap_weekday_median_model_res)
+        result.append(np.mean(bootstrap_median_model_res) - np.mean(bootstrap_weekday_median_model_res))
+    print result
+
+# <markdowncell>
+
+# 전체 요일에 대해 비슷하게 bootstrap 분석을 해보면 전체 데이터를 사용하는 편이 주말은 물론이고 월, 목에 더 우월한 전략이다. 화요일과 수요일 그리고 금요일에는 평일 데이터만 사용하는 편이 더 우월하다. 이는 따로 bootstrap을 하지 않은 결과와 동일하다. 이 분석을 통해 추가적으로 알 수 있는 것은 목요일과 금요일이 각각 6:3과 2:5로 전체 데이터가 더 나은 전략이라는 것이다.
+# 
+# 이를 더 생각해보면 요일별로 결과가 다르니 데이터를 뽑아내는 모집단도 더 세밀하게 나눠보는 것을 고려할 수 있을 것이다.
+
+# <codecell>
+
 
