@@ -58,7 +58,6 @@ display(HTML(median_model[:10].to_html()))
 # <codecell>
 
 def test_june(prediction, dow='tue'):
-    # dow는 0부터 6까지의 값으로 0이 일요일이다. 화요일은 2이다.
     week = ['sat', 'sun', 'mon', 'tue', 'wed', 'thu', 'fri']
     i = week.index(dow.lower()) 
     testing_days = range(i+1, 31, 7)
@@ -123,7 +122,7 @@ for i in range(7):
 
 # <markdowncell>
 
-# 조금 더 나은 분석을 위해 일종의 bootstrap을 해보자.
+# 조금 더 나은 분석을 위해 일종의 cross validation을 해보자.
 
 # <codecell>
 
@@ -140,7 +139,7 @@ whole_data = whole_data.sort(['date', 'direction', 'index', 'time'])
 
 import random
 
-def bootstrap():
+def crossvalidate():
     # 91 days
     days = range(91)
     random.shuffle(days)
@@ -158,14 +157,18 @@ def bootstrap():
     for x in test_range:
         test_data.append(whole_data[x * STRIDE:(x + 1) * STRIDE])
         
-    bootstrap_train = pd.concat(train_data)
-    bootstrap_test = pd.concat(test_data)
+    cv_train = pd.concat(train_data)
+    cv_test = pd.concat(test_data)
 
-    return bootstrap_train, bootstrap_test
+    return cv_train, cv_test
+
+# <markdowncell>
+
+# Crossvalidate 함수는 말 그대로 k-fold cross validation을 하기 위한 함수이다. 데이터를 10:81으로 나누도록 하드코딩 되어 있으니 9-fold CV라 할 수 있겠다. 이런식으로 사용하기 위해 몇 가지 가정이 뒷받침되어야 하지만 이는 된다고 가정하고 분석을 해보자.
 
 # <codecell>
 
-def test_bootstrap(prediction, test_data, dow='tue'):
+def test_cv(prediction, test_data, dow='tue'):
     week = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
     i = week.index(dow.lower())
     
@@ -187,26 +190,26 @@ def test_bootstrap(prediction, test_data, dow='tue'):
 # <codecell>
 
 for x in range(10):
-    train, test = bootstrap()
+    train, test = crossvalidate()
 
     group = train.groupby(['direction', 'index', 'time'])
     df = group.median()
-    bootstrap_median_model = df.reset_index()
+    cv_median_model = df.reset_index()
     
     weekdays = train[train['weekday'] < 5]
     group = weekdays.groupby(['direction', 'index', 'time'])
     df = group.median()
-    bootstrap_weekday_median_model = df.reset_index()
+    cv_weekday_median_model = df.reset_index()
     
-    bootstrap_median_model_res = test_bootstrap(bootstrap_median_model, test, 'tue')
-    bootstrap_weekday_median_model_res = test_bootstrap(bootstrap_weekday_median_model, test, 'tue')
+    cv_median_model_res = test_cv(cv_median_model, test, 'tue')
+    cv_weekday_median_model_res = test_cv(cv_weekday_median_model, test, 'tue')
     
-    print np.mean(bootstrap_median_model_res), np.mean(bootstrap_weekday_median_model_res)
-    print np.mean(bootstrap_median_model_res) - np.mean(bootstrap_weekday_median_model_res)
+    print np.mean(cv_median_model_res), np.mean(cv_weekday_median_model_res)
+    print np.mean(cv_median_model_res) - np.mean(cv_weekday_median_model_res)
 
 # <markdowncell>
 
-# 화요일 기준으로는 평일 데이터를 사용한 것이 항상 우월하다.
+# 화요일 기준으로는 평일 데이터를 사용한 것이 거의 항상 우월하다.
 
 # <codecell>
 
@@ -214,29 +217,67 @@ for y in ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']:
     print y
     result = []
     for x in range(10):
-        train, test = bootstrap()
+        train, test = crossvalidate()
     
         group = train.groupby(['direction', 'index', 'time'])
         df = group.median()
-        bootstrap_median_model = df.reset_index()
+        cv_median_model = df.reset_index()
         
         weekdays = train[train['weekday'] < 5]
         group = weekdays.groupby(['direction', 'index', 'time'])
         df = group.median()
-        bootstrap_weekday_median_model = df.reset_index()
+        cv_weekday_median_model = df.reset_index()
         
-        bootstrap_median_model_res = test_bootstrap(bootstrap_median_model, test, y)
-        bootstrap_weekday_median_model_res = test_bootstrap(bootstrap_weekday_median_model, test, y)
+        cv_median_model_res = test_cv(cv_median_model, test, y)
+        cv_weekday_median_model_res = test_cv(cv_weekday_median_model, test, y)
         
-        #print np.mean(bootstrap_median_model_res), np.mean(bootstrap_weekday_median_model_res)
-        result.append(np.mean(bootstrap_median_model_res) - np.mean(bootstrap_weekday_median_model_res))
+        result.append(np.mean(cv_median_model_res) - np.mean(cv_weekday_median_model_res))
     print result
 
 # <markdowncell>
 
-# 전체 요일에 대해 비슷하게 bootstrap 분석을 해보면 전체 데이터를 사용하는 편이 주말은 물론이고 월, 목에 더 우월한 전략이다. 화요일과 수요일 그리고 금요일에는 평일 데이터만 사용하는 편이 더 우월하다. 이는 따로 bootstrap을 하지 않은 결과와 동일하다. 이 분석을 통해 추가적으로 알 수 있는 것은 목요일과 금요일이 각각 6:3과 2:5로 전체 데이터가 더 나은 전략이라는 것이다.
+# 전체 요일에 대해 비슷하게 cross validation 분석을 해보면 전체 데이터를 사용하는 편이 주말은 물론이고 월요일에도 더 우월한 전략이다. 화요일과 수요일, 목요일 그리고 금요일에는 평일 데이터만 사용하는 편이 더 우월하다. 이는 따로 cross validation을 하지 않은 결과와 비슷해 보인다. 비록 10회 밖에 반복을 하지 않아 통계적인 안정성을 말할 수는 없지만, 적어도 화요일에는 평일 데이터만 사용하는 편이 더 나은 것으로 보인다.
 # 
-# 이를 더 생각해보면 요일별로 결과가 다르니 데이터를 뽑아내는 모집단도 더 세밀하게 나눠보는 것을 고려할 수 있을 것이다.
+# 요일별로 양상이 다른 것을 고려한다면 목표 예측 요일별 데이터를 뽑아내는 모집단도 더 세밀하게 나눠보는 것을 고려할 수 있을 것이다.
+
+# <markdowncell>
+
+# 최종 loss function이 MAE (mean absolute error) 이므로 평균값 (mean) 보다는 중앙값 (median) 을 사용하는 편이 더 성능이 좋을 것이라고 생각할 수 있다. 이를 검증하는 것은 쉬운 문제이다.
+
+# <codecell>
+
+whole_week = pd.concat([april, may])
+whole_week['time'] = whole_week.date_time.apply(lambda x: "{:02d}{:02d}".format(x.hour, x.minute))
+group = whole_week.groupby(['direction', 'index', 'time'])
+df = group.mean()
+mean_model = df.reset_index()
+
+mean_res = test_june(mean_model, 'tue')
+print np.mean(mean_res)
+print mean_res
+
+# <markdowncell>
+
+# Median을 사용한 모델의 에러는 5.86801621748 였는데, mean을 사용한 모델은 6.04020650371 로 크게 차이난다.
+
+# <codecell>
+
+weekdays = pd.concat([april, may])
+weekdays['weekday'] = weekdays['date_time'].apply(lambda x: x.weekday())
+weekdays = weekdays[weekdays['weekday'] < 5]
+del weekdays['weekday']
+weekdays['time'] = weekdays.date_time.apply(lambda x: "{:02d}{:02d}".format(x.hour, x.minute))
+group = weekdays.groupby(['direction', 'index', 'time'])
+df = group.mean()
+weekday_mean_model = df.reset_index()
+
+weekday_mean_res = test_june(weekday_mean_model, 'tue')
+print np.mean(weekday_mean_res)
+print weekday_mean_res
+
+# <markdowncell>
+
+# 주중 데이터만 사용한 경우에도 마찬가지의 결과를 얻을 수 있다. Median 기반은 5.85363191689 인데 mean 기반은 5.9240332326 이다.
 
 # <codecell>
 
