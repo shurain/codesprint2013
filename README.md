@@ -8,4 +8,4 @@ They are there just for the convenience.
 `Data Analysis` contains the basic analysis of the given data. It contains some pictures and even an animation.
 `Basemodel` depicts how the base model came to be. The decision of median over average and weekdays over whole week based on the data.
 
-Refer to [blog.shurain.net/2013/07/code-sprint-2013-round-2.html](blog.shurain.net/2013/07/code-sprint-2013-round-2.html) for explanation.
+Refer to [http://blog.shurain.net/2013/07/code-sprint-2013-round-2.html](http://blog.shurain.net/2013/07/code-sprint-2013-round-2.html) for explanation.
