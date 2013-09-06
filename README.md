@@ -10,4 +10,4 @@ They are there just for the convenience.
 - `Bayesian Approach` shows you a generative approach to the problem.
 
 Refer to [http://blog.shurain.net/2013/07/code-sprint-2013-round-2.html](http://blog.shurain.net/2013/07/code-sprint-2013-round-2.html)
-and [blog.shurain.net/2013/08/code-sprint-2013-round-2-post-mortem.html](blog.shurain.net/2013/08/code-sprint-2013-round-2-post-mortem.html) for more explanation.
+and [http://blog.shurain.net/2013/08/code-sprint-2013-round-2-post-mortem.html](http://blog.shurain.net/2013/08/code-sprint-2013-round-2-post-mortem.html) for more explanation.
